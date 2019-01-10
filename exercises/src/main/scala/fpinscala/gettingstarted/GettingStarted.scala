@@ -36,7 +36,14 @@ object MyModule {
 
   // Exercise 1: Write a function to compute the nth fibonacci number
 
-  def fib(n: Int): Int = ???
+  def fib(n: Int): Int = {
+    @annotation.tailrec
+    def go(n: Int, prev: Int, curr: Int): Int = {
+      if(n <=0 ) curr
+      else go(n-1, curr, prev + curr)
+    }
+    go(n, 1, 0)
+  }
 
   // This definition and `formatAbs` are very similar..
   private def formatFactorial(n: Int) = {
@@ -140,7 +147,23 @@ object PolymorphicFunctions {
 
   // Exercise 2: Implement a polymorphic function to check whether
   // an `Array[A]` is sorted
-  def isSorted[A](as: Array[A], gt: (A,A) => Boolean): Boolean = ???
+  def isSorted[A](as: Array[A], gt: (A,A) => Boolean): Boolean = {
+    def go(n: Int): Boolean = {
+      if(n == 0) true
+      else if(gt(as(n-1), as(n))) false
+      else go(n-1)
+    }
+    go(as.length - 1)
+  }
+
+  def findFirst[A](as: Array[A], p:A => Boolean): Option[A] = {
+    def go(n: Int): Option[A] = {
+      if(n == as.length) None
+      else if(p(as(n))) Some(as(n))
+      else go(n+1)
+    }
+    go(0)
+  }
 
   // Polymorphic functions are often so constrained by their type
   // that they only have one implementation! Here's an example:
@@ -153,13 +176,13 @@ object PolymorphicFunctions {
   // Note that `=>` associates to the right, so we could
   // write the return type as `A => B => C`
   def curry[A,B,C](f: (A, B) => C): A => (B => C) =
-    ???
+    (a: A) => (b: B) => f(a,b)  // (a: A) => ((b: B) => f(a,b))
 
   // NB: The `Function2` trait has a `curried` method already
 
   // Exercise 4: Implement `uncurry`
   def uncurry[A,B,C](f: A => B => C): (A, B) => C =
-    ???
+    (a, b) => f(a)(b)   // (a: A, b: B) => f(a)(b)
 
   /*
   NB: There is a method on the `Function` object in the standard library,
@@ -174,5 +197,20 @@ object PolymorphicFunctions {
   // Exercise 5: Implement `compose`
 
   def compose[A,B,C](f: B => C, g: A => B): A => C =
-    ???
+    a => f(g(a))
+
+  def main(args: Array[String]): Unit = {
+    def greater(n1: Int, n2:Int): Boolean = n1 > n2
+    val greater2 = new Function2[Int, Int, Boolean] {
+      def apply(n1: Int, n2:Int): Boolean = n1 > n2
+    }
+
+    println(isSorted(Array(1,2,4,6), greater))
+    println(isSorted(Array(1,2,6,4), greater2))
+    println(isSorted(Array(3,2,4,6), greater))
+    println(isSorted(Array(1,2,6,6), greater))
+
+    println(findFirst(Array(1,2,9,6), (x: Int) => x % 3 == 0))
+    println(findFirst(Array(1,2,7,5), (x: Int) => x == 9))
+  }
 }
