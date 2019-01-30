@@ -4,15 +4,30 @@ package fpinscala.errorhandling
 import scala.{Option => _, Some => _, Either => _, _} // hide std library `Option`, `Some` and `Either`, since we are writing our own in this chapter
 
 sealed trait Option[+A] {
-  def map[B](f: A => B): Option[B] = ???
+  def map[B](f: A => B): Option[B] = this match {
+    case None => None
+    case Some(a: A) => Some(f(a))
+  }
 
-  def getOrElse[B>:A](default: => B): B = ???
+  def getOrElse[B>:A](default: => B): B = this match {
+    case None => default
+    case Some(a: A) => a
+  }
 
-  def flatMap[B](f: A => Option[B]): Option[B] = ???
+  def flatMap[B](f: A => Option[B]): Option[B] = this match {
+    case None => None
+    case Some(a: A) => f(a)
+  }
 
-  def orElse[B>:A](ob: => Option[B]): Option[B] = ???
+  def orElse[B>:A](ob: => Option[B]): Option[B] = this match {
+    case None => ob
+    case Some(a: A) => this
+  }
 
-  def filter(f: A => Boolean): Option[A] = ???
+  def filter(f: A => Boolean): Option[A] = this match {
+    case Some(a) if f(a) => this
+    case _ => None
+  }
 }
 case class Some[+A](get: A) extends Option[A]
 case object None extends Option[Nothing]
@@ -38,11 +53,34 @@ object Option {
   def mean(xs: Seq[Double]): Option[Double] =
     if (xs.isEmpty) None
     else Some(xs.sum / xs.length)
-  def variance(xs: Seq[Double]): Option[Double] = ???
+  def variance(xs: Seq[Double]): Option[Double] = {
+    val optM = mean(xs)
+    optM.flatMap(m => mean(xs.map(n => math.pow(n - m, 2))))
+  }
 
-  def map2[A,B,C](a: Option[A], b: Option[B])(f: (A, B) => C): Option[C] = ???
+  def lift[A,B](f: A => B): Option[A] => Option[B] = _ map f
 
-  def sequence[A](a: List[Option[A]]): Option[List[A]] = ???
+  val absO: Option[Double] => Option[Double] = lift(math.abs)
+
+  def map2[A,B,C](a: Option[A], b: Option[B])(f: (A, B) => C): Option[C] =
+    a.flatMap(a1 => b.map(b1 => f(a1, b1)))
+
+  def map21[A,B,C](a: Option[A], b: Option[B])(f: (A, B) => C): Option[C] =
+    for {
+      a1 <- a   // flatMap
+      b1 <- b   // flatMap
+    } yield f(a1, b1) // map
+
+  def sequence[A](a: List[Option[A]]): Option[List[A]] =
+    a.foldLeft(Some(List[A]())) {
+      case (Some(acc), Some(v)) => Some(v :: acc)
+      case _ => Some(Nil)
+    }
 
   def traverse[A, B](a: List[A])(f: A => Option[B]): Option[List[B]] = ???
-}
+
+  def main(args: Array[String]): Unit = {
+    failingFn2(5)
+    println(absO(Some(2.1)))
+  }
+}tu
