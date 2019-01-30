@@ -43,6 +43,12 @@ object List { // `List` companion object. Contains functions for creating and wo
       case Cons(x, xs) => f(x, foldRight(xs, z)(f))
     }
 
+  // @annotation.tailrec
+//  def foldLeft[A,B](l: List[A], z: B)(f: (B, A) => B): B = l match {
+//    case Nil => z
+//    case Cons(h,t) => foldLeft(t, f(z,h))(f)
+//  }
+
   def sum2(ns: List[Int]) =
     foldRight(ns, 0)((x,y) => x + y)
 
@@ -50,19 +56,61 @@ object List { // `List` companion object. Contains functions for creating and wo
     foldRight(ns, 1.0)(_ * _) // `_ * _` is more concise notation for `(x,y) => x * y`; see sidebar
 
 
-  def tail[A](l: List[A]): List[A] = ???
+  def tail[A](l: List[A]): List[A] = l match {
+    case Nil => Nil
+    case Cons(_, t) => t
+  }
 
-  def setHead[A](l: List[A], h: A): List[A] = ???
+  def setHead[A](l: List[A], h: A): List[A] = Cons(h, l)
 
-  def drop[A](l: List[A], n: Int): List[A] = ???
+  def drop[A](l: List[A], n: Int): List[A] = {
+    def go(n: Int, l: List[A]): List[A] = {
+      if(n == 0) l
+      else go(n-1, tail(l))
+    }
+    go(n, l)
+  }
 
-  def dropWhile[A](l: List[A], f: A => Boolean): List[A] = ???
+  def dropWhile[A](l: List[A], f: A => Boolean): List[A] = {
+    l match {
+      case Cons(h, t) if f(h) => dropWhile(t, f)
+      case _ => l
+    }
+  }
 
-  def init[A](l: List[A]): List[A] = ???
+  def init[A](l: List[A]): List[A] = {
+    l match {
+      case Nil => Nil
+      case Cons(_, Nil) => Nil
+      case Cons(h, t) => Cons(h, init(t))
+    }
+  }
 
-  def length[A](l: List[A]): Int = ???
+  def length[A](l: List[A]): Int = foldRight(l, 0)((e, acc) => acc + 1)
 
   def foldLeft[A,B](l: List[A], z: B)(f: (B, A) => B): B = ???
 
+  def reverse[A](l: List[A]): List[A] = ???
+
   def map[A,B](l: List[A])(f: A => B): List[B] = ???
+
+  def main(args: Array[String]): Unit = {
+    println(x)
+
+    println(tail(List(1,2)))
+    println(tail(List("single")))
+    println(tail(List()))
+
+    println(drop(List(1,2,3,4), 2))
+    println(drop(List(1,2,3,4), 3))
+    println(drop(List(1,2,3,4), 4))
+    println(drop(List(1,2,3,4), 0))
+
+    println(dropWhile(List(2,4,6,7,8,9), (x:Int) => x % 2 == 0))
+    println(init(List(2,4,6,7,8,9)))
+
+    println(foldRight(List(1,2,3), Nil:List[Int])(Cons(_,_)))
+
+    println(length(List(2,4,6,7,8,9)))
+  }
 }
