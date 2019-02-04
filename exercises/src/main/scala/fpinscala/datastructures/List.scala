@@ -88,11 +88,30 @@ object List { // `List` companion object. Contains functions for creating and wo
 
   def length[A](l: List[A]): Int = foldRight(l, 0)((e, acc) => acc + 1)
 
-  def foldLeft[A,B](l: List[A], z: B)(f: (B, A) => B): B = ???
+  def foldLeft[A,B](l: List[A], z: B)(f: (B, A) => B): B = l match {
+    case Cons(h: A, Nil) => f(z, h)
+    case Cons(h: A, t: List[A]) => foldLeft(t, f(z, h))(f)
+  }
 
-  def reverse[A](l: List[A]): List[A] = ???
+  def reverse[A](l: List[A]): List[A] = {
+    def go(l: List[A], acc: List[A]): List[A] = {
+      l match {
+        case Cons(h: A, Nil) => setHead(acc, h)
+        case Cons(h: A, t: List[A]) => go(t, setHead(acc, h)) //go(t, append(acc, Cons(h, Nil)))
+      }
+    }
+    go(l, Nil)
+  }
 
-  def map[A,B](l: List[A])(f: A => B): List[B] = ???
+  def map[A,B](l: List[A])(f: A => B): List[B] = {
+    def go(l: List[A]): List[B] = {
+      l match {
+        case Cons(h: A, Nil) => Cons(f(h), Nil)
+        case Cons(h: A, t: List[A]) => Cons(f(h), go(t))
+      }
+    }
+    go(l)
+  }
 
   def main(args: Array[String]): Unit = {
     println(x)
@@ -111,6 +130,20 @@ object List { // `List` companion object. Contains functions for creating and wo
 
     println(foldRight(List(1,2,3), Nil:List[Int])(Cons(_,_)))
 
-    println(length(List(2,4,6,7,8,9)))
+    println("length: "+length(List(2,4,6,7,8,9)))
+
+    val l = List(1,2,3,4)
+    println("add via foldLeft: "+foldLeft(l, 0)((a: Int, b: Int) => a + b))
+
+    println("reverse: "+reverse(l))
+
+    val intToString = (x: Int) => x match {
+      case 1 => "one"
+      case 2 => "two"
+      case 3 => "three"
+      case 4 => "four"
+    }
+    println("map() Int to String: "+map(l)(intToString))
+
   }
 }
