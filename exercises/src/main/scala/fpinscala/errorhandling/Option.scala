@@ -58,7 +58,7 @@ object Option {
     optM.flatMap(m => mean(xs.map(n => math.pow(n - m, 2))))
   }
 
-  def lift[A,B](f: A => B): Option[A] => Option[B] = _ map f
+  def lift[A,B](f: A => B): Option[A] => Option[B] = _ map f  // a: A => a.map()
 
   val absO: Option[Double] => Option[Double] = lift(math.abs)
 
@@ -74,13 +74,30 @@ object Option {
   def sequence[A](a: List[Option[A]]): Option[List[A]] =
     a.foldLeft(Some(List[A]())) {
       case (Some(acc), Some(v)) => Some(v :: acc)
+      case (Some(acc), None) => Some(acc)
       case _ => Some(Nil)
     }
 
-  def traverse[A, B](a: List[A])(f: A => Option[B]): Option[List[B]] = ???
+  def traverse[A, B](l: List[A])(f: A => Option[B]): Option[List[B]] =
+    sequence(l.map(a => f(a)))
 
   def main(args: Array[String]): Unit = {
+    // failingFn(5)
     failingFn2(5)
     println(absO(Some(2.1)))
+
+    val op1 = Some("bread")
+    val op2 = Some("jam")
+    val op3 = None
+    val and = (s1: String, s2: String) => s1 + " and " + s2
+    println("map2: "+map2(op1, op2)(and))
+    println("map2 with a None: "+map2(op1, op3)(and))
+
+    val emptyString = (s: String) => if(s.isEmpty) None else Some(s)
+    println("sequence: "+sequence(List(op1, op3, op2)))
+    println("sequence of empty list: "+sequence(List()))
+
+    println("traverse: "+traverse[String, String](List("str1", "", "str2"))(emptyString))
+    println("traverse empty strings list: "+traverse[String, String](List("", "", ""))(emptyString))
   }
 }
