@@ -17,7 +17,29 @@ trait Stream[+A] {
     case Empty => None
     case Cons(h, t) => if (f(h())) Some(h()) else t().find(f)
   }
-  def take(n: Int): Stream[A] = ???
+
+//  def toList: List[A] = {
+//    def go(s: => Stream[A]): List[A] = this match {
+//      case Empty => List()
+//      case Cons(h, t) => h() :: go(t())
+//    }
+//    go(this)
+//  }
+
+  def toList: List[A] = this match {
+    case Empty =>
+      List[A]()
+    case Cons(h: A, t) =>
+      h() :: t().toList
+  }
+
+  def take(n: Int): Stream[A] = {
+    def go(s: Stream[A], n: Int): Stream[A] = this match {
+      case Empty => Empty
+      case Cons(h, t) => cons[A](h(), go(t(), n-1))
+    }
+    go(this, n)
+  }
 
   def drop(n: Int): Stream[A] = ???
 
@@ -52,4 +74,31 @@ object Stream {
   def from(n: Int): Stream[Int] = ???
 
   def unfold[A, S](z: S)(f: S => Option[(A, S)]): Stream[A] = ???
+
+  def main(args: Array[String]): Unit = {
+    def if2[A](cond: Boolean, onTrue: () => A, onFalse: () => A): A = if (cond) onTrue() else onFalse()
+    val a = 0
+    if2(a < 22, () => println("a"), () => println("b"))
+    // if2(false, sys.error("fail"), () => print("done"))
+
+    def maybeTwice(b: Boolean, i: => Int) = if (b) i+i else 0
+    val x = maybeTwice(true, { println("hi"); 1+41 })
+    println(x)
+
+    println("\nlazy testing:")
+    def maybeTwice2(b: Boolean, i: => Int) = {
+      lazy val j=i;
+      maybeTwice(b, j)
+    }
+    println("true- ")
+    println(maybeTwice2(true, { println("hi"); 1+41 }))
+    println("false- ")
+    println(maybeTwice2(false, { println("hi"); 1+41 }))
+
+    // Streams
+    val stream1 = Stream.apply(1,2,3,4)
+    println("stream: "+stream1)
+    println("stream.toList: "+stream1.toList)
+    println("stream.take(3).toList: "+stream1.take(3).toList)
+  }
 }
