@@ -71,6 +71,25 @@ trait Stream[+A] {
 
   // todo: 5.7 map, filter, append, flatmap using foldRight.
   // Part of the exercise is writing your own function signatures.
+  def map[B](f: A => B): Stream[B] = this match {
+    case Empty => Empty
+    case Cons(h, t) => cons(f(h()), t().map(f))
+  }
+
+  def filter(p: A => Boolean): Stream[A] = this match {
+    case Cons(h, t) if(p(h()))=> cons(h(), t().filter(p))
+    case Empty => Empty
+    case Cons(h, t) => t().filter(p)
+  }
+
+  def append[B>:A](s: Stream[B]): Stream[B] = foldRight(s)((e, acc) => cons(e, acc))
+
+  def flatMap[B](f: A => Stream[B]): Stream[B] = this match {
+    case Empty => Empty
+    case Cons(h, t) => f(h()) append t().flatMap(f)
+  }
+
+  def appendElement[B>:A](a: B): Stream[B] = cons(a, this)
 
   def startsWith[B](s: Stream[B]): Boolean = ???
 }
@@ -128,5 +147,21 @@ object Stream {
     println("stream.forAll(_ % 2 == 0): "+stream1.forAll(_ % 2 == 0))
     println("stream.headOption: "+stream1.headOption)
     println("emptyStream.headOption: "+Stream.apply().headOption)
+
+    import fpinscala.TestUtils.intToString
+    println("stream.map(intToString).toList: "+stream1.map(intToString).toList)
+    println("stream.map(_ * 5).toList: "+stream1.map(_ * 5).toList)
+    println("stream.filter(_ % 2 == 0).toList: "+stream1.filter(_ % 2 == 0).toList)
+
+    def genStreams(x: Int) = {
+      def go(n: Int): Stream[Int] = if(n == 0) Empty else cons(x, go(n-1))
+      go(x)
+    }
+    val intStreams = (x: Int) => genStreams(x)
+
+    println("stream.flatMap(intStreams).toList: "+stream1.flatMap(intStreams).toList)
+
+
+
   }
 }
