@@ -39,7 +39,7 @@ trait Stream[+A] {
   }
 
   def take(n: Int): Stream[A] = this match {
-    case Cons(_, _) if(n == 0) => Empty
+    case Cons(_, _) if(n == 0) => empty
     case Cons(h, t) => cons[A](h(), t().take(n-1))
   }
 
@@ -50,7 +50,7 @@ trait Stream[+A] {
 
   def takeWhile(p: A => Boolean): Stream[A] = this match {
     case Cons(h, t) if(p(h())) => cons[A](h(), t().takeWhile(p))
-    case Cons(h, t) => Empty
+    case Cons(h, t) => empty
   }
 
   // f: (A, => B) => B
@@ -99,9 +99,27 @@ object Stream {
     else cons(as.head, apply(as.tail: _*))
 
   val ones: Stream[Int] = Stream.cons(1, ones)
-  def from(n: Int): Stream[Int] = ???
+  def from(n: Int): Stream[Int] = Stream.cons(n, from(n+1))
 
-  def unfold[A, S](z: S)(f: S => Option[(A, S)]): Stream[A] = ???
+  def constant[A](a: A): Stream[A] = Stream.cons(a, constant(a))
+
+  def fibs: Stream[Int] = {
+    def go(prev: Int, curr: Int): Stream[Int] = Stream.cons(curr, go(curr, prev + curr))
+    go(1, 0)
+  }
+
+  // unfold is corecursive function. A recursive function consumes data, a corecursive function produces data.
+  // Corecursion is also sometimes called guarded recursion, and productivity is also sometimes called cotermination.
+  def unfold[A, S](z: S)(f: S => Option[(A, S)]): Stream[A] = f(z) match {
+    case Some((a, s)) => Stream.cons(a, unfold(s)(f))
+    case None => empty
+  }
+
+  val onesViaUnfold: Stream[Int] = unfold(1){case (n: Int) => Some((n,n))}
+  def fromViaUnfold(n: Int): Stream[Int] = unfold(n){case (n: Int) => Some((n,n+1))}
+  def constantViaUnfold[A](a: A): Stream[A] = unfold(a){case (a: A) => Some((a,a))}
+  // def fibsViaUnfold: Stream[Int] = unfold((0,1))((prev: Int, curr: Int) => Some((prev, (curr, prev + curr))))
+  def fibsViaUnfold: Stream[Int] = unfold((0,1)){case (prev: Int, curr: Int) => Some((prev, (curr, prev + curr)))}
 
   def main(args: Array[String]): Unit = {
     def if2[A](cond: Boolean, onTrue: () => A, onFalse: () => A): A = if (cond) onTrue() else onFalse()
@@ -122,6 +140,7 @@ object Stream {
     println(maybeTwice2(true, { println("hi"); 1+41 }))
     println("false- ")
     println(maybeTwice2(false, { println("hi"); 1+41 }))
+    println()
 
     // Streams
     val stream1 = Stream.apply(1,2,3,4)
@@ -136,6 +155,7 @@ object Stream {
     println("stream.forAll(_ % 2 == 0): "+stream1.forAll(_ % 2 == 0))
     println("stream.headOption: "+stream1.headOption)
     println("emptyStream.headOption: "+Stream.apply().headOption)
+    println()
 
     import fpinscala.TestUtils.intToString
     println("stream.map(intToString).toList: "+stream1.map(intToString).toList)
@@ -147,7 +167,18 @@ object Stream {
       go(x)
     }
     val intStreams = (x: Int) => genStreams(x)
-
     println("stream.flatMap(intStreams).toList: "+stream1.flatMap(intStreams).toList)
+    println()
+
+    println("ones.map(_ + 1).exists(_ % 2 == 0): "+ones.map(_ + 1).exists(_ % 2 == 0))
+    println("ones.takeWhile(_ == 1): "+ones.takeWhile(_ == 1))
+    println("ones.forAll(_ != 1): "+ones.forAll(_ != 1))
+    // println("ones.forAll(_ == 1): "+ones.forAll(_ == 1))
+    println("constant(\"same\").take(5).toList: "+constant("same").take(5).toList)
+    println("constantViaUnfold(\"same\").take(5).toList: "+constantViaUnfold("same").take(5).toList)
+    println("from(11).take(5).toList: "+from(11).take(5).toList)
+    println("fromViaUnfold(11).take(5).toList: "+fromViaUnfold(11).take(5).toList)
+    println("fibs.take(15).toList: "+fibs.take(15).toList)
+    println("fibsViaUnfold.take(15).toList: "+fibsViaUnfold.take(15).toList)
   }
 }

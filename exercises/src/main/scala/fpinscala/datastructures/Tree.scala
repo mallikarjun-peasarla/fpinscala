@@ -39,23 +39,16 @@ object Tree {
     go(t)
   }
 
+  // todo
+  def fold[A, B](t: Tree[A])(f: A => B): Tree[B] = ???
+
   def main(args: Array[String]): Unit = {
     val t = Branch(Branch(Leaf(1), Branch(Leaf(2), Branch(Leaf(3), Leaf(9)))), Branch(Leaf(4), Branch(Leaf(5), Leaf(6))))
     println("tree size: "+size(t))
     println("max in tree: "+maximum(t))
     println("depth of tree: "+depth(t))
 
-    val intToString = (x: Int) => x match {
-      case 1 => "one"
-      case 2 => "two"
-      case 3 => "three"
-      case 4 => "four"
-      case 5 => "five"
-      case 6 => "six"
-      case 7 => "seven"
-      case 8 => "eight"
-      case 9 => "nine"
-    }
+    import fpinscala.TestUtils.intToString
     println("map transform: "+map[Int, String](t)(intToString))
   }
 
