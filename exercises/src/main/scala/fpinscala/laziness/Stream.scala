@@ -43,6 +43,13 @@ trait Stream[+A] {
     case Cons(h, t) => cons[A](h(), t().take(n-1))
   }
 
+  def takeViaUnfold(n: Int): Stream[A] =
+    unfold(this) {
+      case Cons(_, _) if(n == 0) => None
+      case Cons(h, t) => Some(h(), t().take(n-1))
+    }
+
+
   def drop(n: Int): Stream[A] = this match {
     case Cons(h, t) if(n == 0) => cons[A](h(), t())
     case Cons(h, t) => t().drop(n-1)
@@ -56,6 +63,11 @@ trait Stream[+A] {
   // f: (A, => B) => B
   //cannot terminate when function not true with fold
   def takeWhile2(p: A => Boolean): Stream[A] = foldRight(Stream[A]())((a, b) => if(p(a)) cons(a, b) else b)
+
+  def takeWhileViaUnfold(p: A => Boolean): Stream[A] = unfold(this) {
+    case Cons(h, t) if(p(h())) => Some(h(), t())
+    case _ => None
+  }
 
   def forAll(p: A => Boolean): Boolean = foldRight(true)((e,a) => p(e) && a)
 
@@ -72,7 +84,27 @@ trait Stream[+A] {
   // Part of the exercise is writing your own function signatures.
   def map[B](f: A => B): Stream[B] = foldRight(empty[B])((h,t) => cons(f(h), t))
 
+  def map1[B](f: A => B): Stream[B] = this match {
+    case Empty => Empty
+    case Cons(h, t) => cons(f(h()), t().map1(f))
+  }
+
+  /* def unfold[B, S](z: S)(f: S => Option[(B, S)]): Stream[B] -- S=Stream[B]
+    -~->  def unfold[Stream[B]](a: B)(f: B => Option[(B, Stream[B])]): Stream[B] */
+  def mapViaUnfold[B](f: A => B): Stream[B] =
+    unfold(this) {
+      case Cons(h,t) =>
+        Some((f(h()), t()))
+      case _ => None
+    }
+
   def filter(p: A => Boolean): Stream[A] = foldRight(empty[A])((h,t) => if(p(h)) cons(h, t) else t)
+
+  def filterViaUnfold(p: A => Boolean): Stream[A] =
+    unfold(this) {
+      case Cons(h,t) if(p(h())) => Some(h(), t())
+      case _ => None
+    }
 
   def append[B>:A](s: Stream[B]): Stream[B] = foldRight(s)((e, acc) => cons(e, acc))
 
@@ -80,8 +112,41 @@ trait Stream[+A] {
 
   def appendElement[B>:A](a: B): Stream[B] = cons(a, this)
 
-  def startsWith[B](s: Stream[B]): Boolean = ???
+  def zipWithViaUnfold[B,C](b: Stream[B])(f: (A,B) => C): Stream[C] = unfold((this,b)) {
+    case (Cons(h1,t1), Cons(h2,t2)) => Some(f(h1(),h2()), (t1(),t2()))
+    case _ => None
+  }
+
+  def zipAllViaUnfold[B](b: Stream[B]): Stream[(Option[A], Option[B])] = unfold((this,b)) {
+    case (Cons(h1,t1), Cons(h2,t2)) => Some((Some(h1()),Some(h2())), (t1(),t2()))
+    case (Empty, Cons(h2,t2)) => Some((None,Some(h2())), (empty,t2()))
+    case (Cons(h1,t1), Empty) => Some((Some(h1()),None), (t1(),empty))
+    case _ => None
+  }
+
+  def startsWith[B>:A](s: Stream[B]): Boolean =
+    zipWithViaUnfold(s)((a1: B, a2:B) => a1 == a2).
+      foldRight(true)((b1, b2) => b1 && b2)
+
+  def tails: Stream[Stream[A]] = unfold(this) {
+    case Cons(h, t) => Some((t(), t()))
+    case _ => None
+  }
+
+  def tailsWithSelf: Stream[Stream[A]] = unfold(this) {
+    case Cons(h, t) => Some((Cons(h, t), t()))
+    case _ => None
+  }
+
+  // This small example, of assembling hasSubsequence from simpler functions using laziness, is from Cale Gibbard.
+  // See this post: http://lambda-the-ultimate.org/node/1277#comment-14313.
+  def hasSubsequence[A](s: Stream[A]): Boolean = tails exists (_ startsWith s)
+
+  // def scanRight[B](b1: B)(f: (A,A) => B) : Stream[B] = tails.map(s => s.foldRight(b1){(b,acc) => f(b)})
+  def scanRight[B](b1: B)(f: (A, B) => B) : Stream[B] = tailsWithSelf.map(s => s.foldRight(b1){(a,acc) => f(a, acc)})
+
 }
+
 case object Empty extends Stream[Nothing]
 case class Cons[+A](h: () => A, t: () => Stream[A]) extends Stream[A]
 
@@ -100,9 +165,7 @@ object Stream {
 
   val ones: Stream[Int] = Stream.cons(1, ones)
   def from(n: Int): Stream[Int] = Stream.cons(n, from(n+1))
-
   def constant[A](a: A): Stream[A] = Stream.cons(a, constant(a))
-
   def fibs: Stream[Int] = {
     def go(prev: Int, curr: Int): Stream[Int] = Stream.cons(curr, go(curr, prev + curr))
     go(1, 0)
@@ -111,15 +174,24 @@ object Stream {
   // unfold is corecursive function. A recursive function consumes data, a corecursive function produces data.
   // Corecursion is also sometimes called guarded recursion, and productivity is also sometimes called cotermination.
   def unfold[A, S](z: S)(f: S => Option[(A, S)]): Stream[A] = f(z) match {
-    case Some((a, s)) => Stream.cons(a, unfold(s)(f))
+    case Some((a, s)) =>
+      Stream.cons(a, unfold(s)(f))
     case None => empty
   }
 
   val onesViaUnfold: Stream[Int] = unfold(1){case (n: Int) => Some((n,n))}
   def fromViaUnfold(n: Int): Stream[Int] = unfold(n){case (n: Int) => Some((n,n+1))}
+  /* def unfold[A, S](z: S)(f: S => Option[(A, S)]): Stream[A]
+      -~->  def unfold[A](a: A)(f: A => Option[(A, A)]): Stream[A] */
   def constantViaUnfold[A](a: A): Stream[A] = unfold(a){case (a: A) => Some((a,a))}
   // def fibsViaUnfold: Stream[Int] = unfold((0,1))((prev: Int, curr: Int) => Some((prev, (curr, prev + curr))))
   def fibsViaUnfold: Stream[Int] = unfold((0,1)){case (prev: Int, curr: Int) => Some((prev, (curr, prev + curr)))}
+
+  def zipWith[A,B,C](a:Stream[A], b: Stream[B])(f: (A,B) => C): Stream[C] = (a,b) match {
+    case (Empty, _) => empty
+    case (_, Empty) => empty
+    case (Cons(h1,t1), Cons(h2,t2)) => Stream.cons(f(h1(),h2()), zipWith(t1(),t2())(f))
+  }
 
   def main(args: Array[String]): Unit = {
     def if2[A](cond: Boolean, onTrue: () => A, onFalse: () => A): A = if (cond) onTrue() else onFalse()
@@ -159,8 +231,10 @@ object Stream {
 
     import fpinscala.TestUtils.intToString
     println("stream.map(intToString).toList: "+stream1.map(intToString).toList)
+    println("stream.mapViaUnfold(intToString).toList: "+stream1.mapViaUnfold(intToString).toList)
     println("stream.map(_ * 5).toList: "+stream1.map(_ * 5).toList)
     println("stream.filter(_ % 2 == 0).toList: "+stream1.filter(_ % 2 == 0).toList)
+    println("stream.filterViaUnfold(_ % 2 == 0).toList: "+stream1.filterViaUnfold(_ % 2 == 0).toList)
 
     def genStreams(x: Int) = {
       def go(n: Int): Stream[Int] = if(n == 0) Empty else cons(x, go(n-1))
@@ -180,5 +254,18 @@ object Stream {
     println("fromViaUnfold(11).take(5).toList: "+fromViaUnfold(11).take(5).toList)
     println("fibs.take(15).toList: "+fibs.take(15).toList)
     println("fibsViaUnfold.take(15).toList: "+fibsViaUnfold.take(15).toList)
+    println()
+
+    val stream2 = Stream.apply(4,3,2,1)
+    println("stream1.zipWith(stream2)({case (a,b) => a + b}).toList: "+zipWith(stream1, stream2)({case (a,b) => a + b}).toList)
+    println("stream1.zipWithViaUnfold(stream2)({case (a,b) => a + b}).toList: "+stream1.zipWithViaUnfold(stream2)({case (a,b) => a + b}).toList)
+    println("stream1.startsWith(Stream.apply(1,2,3)): "+stream1.startsWith(Stream.apply(1,2,3)))
+    println("stream1.startsWith(Stream.apply(1,2,4)): "+stream1.startsWith(Stream.apply(1,2,4)))
+    println("stream1.zipAllViaUnfold(Stream.apply(1,2,4)).toList: "+stream1.zipAllViaUnfold(Stream.apply(1,2,3)).toList)
+    println("Stream.apply(1,2,3).zipAllViaUnfold(stream1).toList: "+Stream.apply(1,2,3).zipAllViaUnfold(stream1).toList)
+    println("stream1.tails (list view): ")
+    stream1.tails.toList.foreach(s => print(s.toList+","))
+    println()
+    println("stream1.scanRight: "+stream1.scanRight(0)(_ + _).toList)
   }
 }
